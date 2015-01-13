@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.jena.atlas.io.IndentedWriter;
 import org.apache.jena.riot.RDFDataMgr;
@@ -35,11 +36,7 @@ import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.sparql.vocabulary.FOAF;
 import com.hp.hpl.jena.util.FileManager;
-import com.hp.hpl.jena.vocabulary.RDF;
-import com.hp.hpl.jena.vocabulary.VCARD;
 
 /**
  * 
@@ -47,78 +44,161 @@ import com.hp.hpl.jena.vocabulary.VCARD;
 
 public class RDFManager extends Object {
 	// some definitions
-	private Model mainModel;
+	private Model rdfModel = null;
 	static public final String NL = System.getProperty("line.separator");
+	private ArrayList<String> subjects = null;
+	private ArrayList<String> predicates = null;
+	private ArrayList<String> objects = null;
+	// Subject String with URL prefix
+	private HashMap<String, String> oriSub = null;
+	private HashMap<String, String> oriPre = null;
+	private HashMap<String, String> oriObj = null;
 
-	public RDFManager() {
+	public RDFManager(String knowledgeBase) {
+		rdfModel = RDFManager.readRDF(knowledgeBase);
+		inital();
+	}
+
+	// public Model createModel() throws FileNotFoundException {
+	// String personURI = "http://somewhere/JohnSmith";
+	// String personURI2 = "http://somewhere/ChenShini";
+	// String givenName = "John";
+	// String familyName = "Smith";
+	// String friendURI = "http://csn.com/BigFlower";
+	// String documentURI = "http://csn.com/document";
+	// String fullName = givenName + " " + familyName;
+	// // create an empty model
+	// Model model = ModelFactory.createDefaultModel();
+	//
+	// // create the resource
+	// // and add the properties cascading style
+	// Resource johnSmith = model
+	// .createResource(personURI)
+	// .addProperty(VCARD.FN, fullName)
+	// .addProperty(
+	// VCARD.N,
+	// model.createResource()
+	// .addProperty(VCARD.Given, givenName)
+	// .addProperty(VCARD.Family, familyName));
+	// Resource friend = model.createResource(friendURI);
+	// Resource friend2 = model.createResource("http://csn.com/BigFlower2");
+	//
+	// // Add proprties for the resources in a cascading style
+	// Resource person = model.createResource(personURI2)
+	//
+	// .addProperty(RDF.type, FOAF.Person).addProperty(FOAF.knows, friend)
+	// .addLiteral(FOAF.name, "Carol Nobody")
+	// .addProperty(FOAF.knows, friend2);
+	//
+	// Resource foafDoc = model.createResource(documentURI)
+	// .addProperty(RDF.type, FOAF.PersonalProfileDocument)
+	// .addProperty(FOAF.maker, person)
+	// .addProperty(FOAF.primaryTopic, person);
+	// PrintWriter out = new PrintWriter(
+	// new FileOutputStream("data/test.json"));
+	// // now write the model in XML form to a filer
+	// model.write(out, "TURTLE");
+	// return model;
+	// }
+
+	private void inital() {
+		this.subjects = new ArrayList<String>();
+		this.predicates = new ArrayList<String>();
+		this.objects = new ArrayList<String>();
+		this.oriSub = new HashMap<String, String>();
+		this.oriPre = new HashMap<String, String>();
+		this.oriObj = new HashMap<String, String>();
+		Set<String> s = new HashSet<String>();
+		Set<String> p = new HashSet<String>();
+		Set<String> o = new HashSet<String>();
+
+		this.getAll(s, p, o);
+
+		String prefix = "http:/(/[a-z_.0-9]+)+[/#]";
+
+		s.forEach(ss -> {
+			String s1 = ss.toLowerCase().replaceAll(prefix, "");
+			this.subjects.add(s1);
+			oriSub.put(s1, ss);
+		});
+		p.forEach(pp -> {
+			String p1 = pp.toLowerCase().replaceAll(prefix, "");
+
+			this.predicates.add(p1);
+			oriPre.put(p1, pp);
+		});
+		o.forEach(oo -> {
+			String o1 = oo.toLowerCase().replaceAll(prefix, "");
+
+			this.objects.add(o1);
+			oriObj.put(o1, oo);
+		});
+		System.out.println("inital");
+		// this.subjects.forEach(ss -> System.out.println(ss));
+		// this.predicates.forEach(ss -> System.out.println(ss));
+		this.objects.forEach(ss -> System.out.println(ss));
+	}
+
+	public ArrayList<String> SearchByEditDistance(String key, Role col) {
+
+		ArrayList<String> ans = new ArrayList<String>();
+
+		int minDis = 99999;
+		if (col == Role.SUBJECT) {
+
+			for (String s : this.subjects) {
+				int dis = editDistance(key, s);
+				if (dis <= minDis) {
+					if (dis < minDis) {
+						minDis = dis;
+						ans.clear();
+					}
+					ans.add(oriSub.get(s));
+				}
+			}
+
+		} else if (col == Role.OBJECT) {
+			for (String s : this.objects) {
+				int dis = editDistance(key, s);
+				if (dis <= minDis) {
+					if (dis < minDis) {
+						minDis = dis;
+						ans.clear();
+					}
+					ans.add(oriObj.get(s));
+				}
+			}
+		}
+		return ans;
+	}
+
+	public int editDistance(String a, String b) {
+
+		String aa = "_" + a, bb = "_" + b;
+		int n = aa.length(), m = bb.length();
+
+		int dis[][] = new int[n][m];
+		for (int i = 0; i < n; i++) {
+			dis[i][0] = i;
+		}
+		for (int j = 0; j < m; j++) {
+			dis[0][j] = j;
+		}
+		for (int i = 1; i < n; i++) {
+			for (int j = 1; j < m; j++) {
+				dis[i][j] = Math.min(dis[i - 1][j], dis[i][j - 1]) + 1;
+
+				dis[i][j] = Math.min(
+						dis[i - 1][j - 1]
+								+ (aa.charAt(i) == bb.charAt(j) ? 0 : 1),
+						dis[i][j]);
+			}
+		}
+		return dis[n - 1][m - 1];
 
 	}
 
-	public Model createModel() throws FileNotFoundException {
-		String personURI = "http://somewhere/JohnSmith";
-		String personURI2 = "http://somewhere/ChenShini";
-		String givenName = "John";
-		String familyName = "Smith";
-		String friendURI = "http://csn.com/BigFlower";
-		String documentURI = "http://csn.com/document";
-		String fullName = givenName + " " + familyName;
-		// create an empty model
-		Model model = ModelFactory.createDefaultModel();
-
-		// create the resource
-		// and add the properties cascading style
-		Resource johnSmith = model
-				.createResource(personURI)
-				.addProperty(VCARD.FN, fullName)
-				.addProperty(
-						VCARD.N,
-						model.createResource()
-								.addProperty(VCARD.Given, givenName)
-								.addProperty(VCARD.Family, familyName));
-		Resource friend = model.createResource(friendURI);
-		Resource friend2 = model.createResource("http://csn.com/BigFlower2");
-
-		// Add proprties for the resources in a cascading style
-		Resource person = model.createResource(personURI2)
-
-		.addProperty(RDF.type, FOAF.Person).addProperty(FOAF.knows, friend)
-				.addLiteral(FOAF.name, "Carol Nobody")
-				.addProperty(FOAF.knows, friend2);
-
-		Resource foafDoc = model.createResource(documentURI)
-				.addProperty(RDF.type, FOAF.PersonalProfileDocument)
-				.addProperty(FOAF.maker, person)
-				.addProperty(FOAF.primaryTopic, person);
-		PrintWriter out = new PrintWriter(
-				new FileOutputStream("data/test.json"));
-		// now write the model in XML form to a filer
-		model.write(out, "TURTLE");
-		return model;
-	}
-
-	public static void main(String args[]) throws FileNotFoundException {
-		// some definitions
-
-		RDFManager rc = new RDFManager();
-		rc.createModel();
-
-		// rc.mainModel = rc.readRDF("data/imdb.ttl");
-		// rc.query(rc.mainModel);
-		rc.NLQuery("who directed the Sin City");
-		rc.NLQuery("Who is the director of the Sin City");
-		rc.NLQuery("What film did Brie Larson played in");
-		rc.NLQuery("who are the actors of the Sin City");
-		rc.NLQuery("Who acts in the Sin City");
-		rc.NLQuery("Who starred in the Sin City");
-		rc.NLQuery("Who played in the Sin City");
-		rc.NLQuery("What kind of film did Brie Larson played in");
-		// rc.NLQuery("who lived in fallingwater");
-		// rc.NLQuery("Who was the newscaster in 1948 on cbs evening news");
-		// rc.NLQuery("who is the music by in bruce almighty");
-		// rc.NLQuery("who was the casting director for meet the parents");
-	}
-
-	public Model readRDF(String inputFileName) {
+	static Model readRDF(String inputFileName) {
 		// create an empty model
 		Model model = ModelFactory.createDefaultModel();
 
@@ -134,13 +214,24 @@ public class RDFManager extends Object {
 		return model;
 	}
 
-	public String NLQuery(String qestion) {
-		StanfordProcessor sp = new StanfordProcessor();
-		String posq = sp.POSString(qestion);
-		Question2Triples q2t = new Question2Triples();
-		String query = q2t.NLPos2Triples(posq).toSparQL();
-		System.out.println(query);
-		return "";
+	public void getAll(Set<String> subjects, Set<String> predicates,
+			Set<String> objects) {
+		String queryString = "SELECT ?s ?p ?o WHERE{?s ?p ?o}";
+		Query query = QueryFactory.create(queryString);
+		// query.serialize(new IndentedWriter(System))
+		// Model model = this.readRDF(fileName);
+		QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel);
+
+		ResultSet rs = qexec.execSelect();
+		for (; rs.hasNext();) {
+			QuerySolution rb = rs.nextSolution();
+			RDFNode s = rb.get("s");
+			RDFNode p = rb.get("p");
+			RDFNode o = rb.get("o");
+			subjects.add(s.toString());
+			predicates.add(p.toString());
+			objects.add(o.toString());
+		}
 
 	}
 
@@ -193,4 +284,8 @@ public class RDFManager extends Object {
 		}
 	}
 
+}
+
+enum Role {
+	SUBJECT, PREDICATE, OBJECT
 }

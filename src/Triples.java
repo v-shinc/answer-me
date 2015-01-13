@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 public class Triples {
@@ -8,10 +7,10 @@ public class Triples {
 		SELECT
 	}
 
-	private ArrayList<Triple> store;
+	public ArrayList<Triple> store;
 	private int count; // numble of varibles
 	public OPT mode;
-	private Map<String, String> prefixes;
+	public Map<String, String> prefixes;
 	static public final String NL = System.getProperty("line.separator");
 
 	public Triples() {
@@ -36,35 +35,6 @@ public class Triples {
 		return "?x" + ++count;
 	}
 
-	public String toSparQL() {
-		this.decomposition();
-		ArrayList<String> vars = getVaribles();
-		StringBuffer sb = new StringBuffer();
-		String key, val;
-		if (!prefixes.isEmpty()) {
-
-			Iterator iter = prefixes.entrySet().iterator();
-			while (iter.hasNext()) {
-				Map.Entry entry = (Map.Entry) iter.next();
-				key = (String) entry.getKey();
-				val = (String) entry.getValue();
-				sb.append("PREFIX " + key + " : " + val + NL);
-			}
-		}
-		if (vars.size() > 0) {
-			sb.append("SELECT");
-			for (String v : vars) {
-				sb.append(" " + v);
-			}
-			sb.append(NL + "WHERE{" + NL);
-			for (Triple t : store) {
-				sb.append(t.toFlat() + NL);
-			}
-			sb.append("}");
-		}
-		return sb.toString();
-	}
-
 	public String last() {
 		return "?x" + (count);
 	}
@@ -85,24 +55,6 @@ public class Triples {
 			if (store.get(i).equals(s, p, o)) {
 				store.remove(i);
 				break;
-			}
-		}
-	}
-
-	public void decomposition() {
-		ArrayList<Triple> tmp = new ArrayList<Triple>();
-		for (int i = 0; i < store.size(); i++) {
-			tmp.add(store.get(i));
-		}
-		for (Triple t : tmp) {
-			int idx = t.Object.toLowerCase().indexOf("of");
-			if (idx >= 0) {
-
-				String A = t.Object.substring(0, idx - 1);
-				String B = t.Object.substring(idx + 2);
-				this.push(t.Subject, t.Predicate, B);
-				this.push(t.Subject, A, this.random());
-				this.pop(t.Subject, t.Predicate, t.Object);
 			}
 		}
 	}
@@ -178,6 +130,7 @@ class Triple {
 		if (!Subject.startsWith("?")) {
 			Subject = "\"" + Subject + "\"";
 		}
+		System.out.println(Object);
 		if (!Object.startsWith("?")) {
 			Object = "\"" + Object + "\"";
 		}

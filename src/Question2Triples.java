@@ -1,4 +1,5 @@
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -277,6 +278,25 @@ public class Question2Triples {
 		return sb.toString().trim();
 	}
 
+	public Triples decomposition(Triples ts) {
+		ArrayList<Triple> tmp = new ArrayList<Triple>();
+		for (int i = 0; i < ts.store.size(); i++) {
+			tmp.add(ts.store.get(i));
+		}
+		for (Triple t : tmp) {
+			int idx = t.Object.toLowerCase().indexOf("of");
+			if (idx >= 0) {
+
+				String A = t.Object.substring(0, idx - 1);
+				String B = t.Object.substring(idx + 2);
+				ts.push(t.Subject, t.Predicate, B);
+				ts.push(t.Subject, A, ts.random());
+				ts.pop(t.Subject, t.Predicate, t.Object);
+			}
+		}
+		return ts;
+	}
+
 	private Triples dispatch(String text) {
 		System.out.println(text.trim());
 		Triples ts = new Triples();
@@ -311,7 +331,7 @@ public class Question2Triples {
 	}
 
 	public Triples NLPos2Triples(String question) {
-		return dispatch(question);
+		return decomposition(dispatch(question));
 	}
 
 	public static void main(String args[]) {
@@ -375,8 +395,10 @@ public class Question2Triples {
 		// Arrays.asList(ss).forEach((sss -> {
 		// q2t.NL2Triple(question)(sss);
 		// }));
+		Triples2Sparql t2s = new Triples2Sparql();
 		for (String sss : ss) {
-			String arq = q2t.NLPos2Triples(sss).toSparQL();
+			Triples ts = q2t.NLPos2Triples(sss);
+			String arq = t2s.toSparQL(ts);
 			// System.out.println(arq);
 
 		}
