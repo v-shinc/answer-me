@@ -19,6 +19,10 @@ public class Triples {
 		prefixes = new HashMap<String, String>();
 	}
 
+	public boolean isEmpty() {
+		return store.isEmpty();
+	}
+
 	public ArrayList<String> getVaribles() {
 
 		ArrayList<String> arr = new ArrayList<String>();
@@ -57,6 +61,10 @@ public class Triples {
 				break;
 			}
 		}
+	}
+
+	public void pop(int idx) {
+		store.remove(idx);
 	}
 
 	public int Count() {
@@ -126,15 +134,34 @@ class Triple {
 				this.Object);
 	}
 
+	public boolean isResource(String s) {
+		if (s.contains("http://"))
+			return true;
+		return false;
+	}
+
+	public String wrap(String s) {
+		if (s.startsWith("?"))
+			return s;
+		if (isResource(s)) {
+			if (!s.startsWith("<"))
+				return "<" + s + ">";
+			return s;
+		} else {
+			if (!s.startsWith("\"")) {
+				s = "\"" + s + "\"";
+			}
+			return s;
+		}
+
+	}
+
 	public String toFlat() {
-		if (!Subject.startsWith("?")) {
-			Subject = "\"" + Subject + "\"";
-		}
-		System.out.println(Object);
-		if (!Object.startsWith("?")) {
-			Object = "\"" + Object + "\"";
-		}
-		return String.format("%s %s %s.", Subject, Predicate, Object);
+		Subject = wrap(Subject);
+		Object = wrap(Object);
+		Predicate = wrap(Predicate);
+
+		return String.format("%s %s %s .", Subject, Predicate, Object);
 	}
 
 }

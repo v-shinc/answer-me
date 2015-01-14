@@ -398,7 +398,7 @@ public class Question2Triples {
 		Triples2Sparql t2s = new Triples2Sparql();
 		for (String sss : ss) {
 			Triples ts = q2t.NLPos2Triples(sss);
-			String arq = t2s.toSparQL(ts);
+			String arq = t2s.toSparQL(ts, 0);
 			// System.out.println(arq);
 
 		}
